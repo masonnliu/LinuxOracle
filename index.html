@@ -1,0 +1,1366 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle RMAN 與 Data Guard 練習</title>
+<style>
+:root{
+  --bg:#f6f5f2; --surface:#ffffff; --surface-2:#f0eee9; --text:#1f2328; --muted:#5b616b;
+  --border:#dedbd3; --accent:#b4432c; --accent-soft:#f6e3de;
+  --why:#2f5f9e; --why-bg:#e8f0fb; --ok:#2e7d4f; --ok-bg:#e5f4ea;
+  --warn:#9a6200; --warn-bg:#fdf1db; --tip:#6a4bb0; --tip-bg:#efe9fa;
+  --code-bg:#1d2127; --code-text:#e6e6e6; --code-comment:#8b949e;
+  --pri:#2f5f9e; --stb:#7a4fb5; --both:#5b616b;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171a; --surface:#1d2024; --surface-2:#24282d; --text:#e6e6e6; --muted:#a2a9b3;
+    --border:#33383f; --accent:#e8735a; --accent-soft:#3a2420;
+    --why:#8ab4ef; --why-bg:#1c2738; --ok:#7fcf9c; --ok-bg:#18291f;
+    --warn:#f0bd5e; --warn-bg:#2e2513; --tip:#bba3f0; --tip-bg:#261f37;
+    --code-bg:#0f1114; --code-text:#e6e6e6; --code-comment:#7d8590;
+    --pri:#8ab4ef; --stb:#bba3f0; --both:#a2a9b3;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171a; --surface:#1d2024; --surface-2:#24282d; --text:#e6e6e6; --muted:#a2a9b3;
+  --border:#33383f; --accent:#e8735a; --accent-soft:#3a2420;
+  --why:#8ab4ef; --why-bg:#1c2738; --ok:#7fcf9c; --ok-bg:#18291f;
+  --warn:#f0bd5e; --warn-bg:#2e2513; --tip:#bba3f0; --tip-bg:#261f37;
+  --code-bg:#0f1114; --code-text:#e6e6e6; --code-comment:#7d8590;
+  --pri:#8ab4ef; --stb:#bba3f0; --both:#a2a9b3;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7;font-size:15.5px}
+code,pre,.mono{font-family:"JetBrains Mono","Cascadia Code",Consolas,"Courier New",monospace}
+a{color:var(--accent)}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);max-width:1280px;margin:0 auto}
+nav.side{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 16px 40px;border-right:1px solid var(--border)}
+nav.side .brand{font-weight:700;font-size:15px;margin-bottom:4px}
+nav.side .sub{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+nav.side h4{margin:18px 0 6px;font-size:12px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;display:flex;justify-content:space-between}
+nav.side h4 .cnt{font-weight:500;letter-spacing:0;text-transform:none}
+nav.side a{display:block;padding:4px 8px;border-radius:6px;color:var(--text);text-decoration:none;font-size:13.5px}
+nav.side a:hover{background:var(--surface-2)}
+nav.side a.done::after{content:" ✓";color:var(--ok)}
+nav.side a.lv1{font-weight:600;margin-top:4px}
+nav.side a.lv2{padding-left:20px;color:var(--muted)}
+.theme-btn{margin-top:18px;font:inherit;font-size:12.5px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+main{padding:28px 32px 80px;min-width:0}
+.hero h1{font-size:28px;line-height:1.3;margin:0 0 6px}
+.hero p{color:var(--muted);margin:0 0 18px;max-width:760px}
+h2.chapter{font-size:24px;margin:56px 0 8px;padding-top:12px;border-top:3px solid var(--accent)}
+h2.chapter small{display:block;font-size:14px;color:var(--muted);font-weight:500}
+h3.part{font-size:19px;margin:40px 0 12px;display:flex;align-items:center;gap:10px}
+h3.part::before{content:"";width:6px;height:20px;background:var(--accent);border-radius:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:14px 0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13.5px;color:var(--muted)}
+.legend b{color:var(--text)}
+/* env form */
+.env{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 14px}
+.env label{display:flex;flex-direction:column;font-size:12.5px;color:var(--muted)}
+.env input{font:inherit;font-family:"JetBrains Mono",Consolas,monospace;font-size:13.5px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text);min-width:0}
+.env-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+button.btn{font:inherit;font-size:13px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer}
+button.btn:hover{border-color:var(--accent)}
+/* step */
+.step{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin:16px 0;overflow:hidden}
+.step>header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 18px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.step>header .num{font-family:"JetBrains Mono",Consolas,monospace;font-size:12.5px;font-weight:700;color:#fff;background:var(--accent);padding:2px 8px;border-radius:5px}
+.step>header h4{margin:0;font-size:16px;flex:1 1 220px}
+.tag{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.tag.pri{color:var(--pri)} .tag.stb{color:var(--stb)} .tag.both{color:var(--both)} .tag.tool{color:var(--muted)}
+.chk{font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--muted)}
+.chk input{width:16px;height:16px;accent-color:var(--ok)}
+.step.is-done>header{background:var(--ok-bg)}
+.step .body{padding:14px 18px 16px}
+.box{border-left:4px solid;border-radius:6px;padding:8px 12px;margin:10px 0;font-size:14.5px}
+.box>b:first-child{display:block;font-size:13px;margin-bottom:2px}
+.why{border-color:var(--why);background:var(--why-bg)} .why>b:first-child{color:var(--why)}
+.ok{border-color:var(--ok);background:var(--ok-bg)} .ok>b:first-child{color:var(--ok)}
+.warn{border-color:var(--warn);background:var(--warn-bg)} .warn>b:first-child{color:var(--warn)}
+.tip{border-color:var(--tip);background:var(--tip-bg)} .tip>b:first-child{color:var(--tip)}
+.box p{margin:4px 0} .box ul{margin:4px 0;padding-left:20px}
+.codewrap{position:relative;margin:10px 0}
+.codewrap .label{position:absolute;top:0;left:0;font-size:11px;padding:2px 10px;border-bottom-right-radius:6px;background:#2d333b;color:#adbac7;font-family:"JetBrains Mono",Consolas,monospace}
+pre{background:var(--code-bg);color:var(--code-text);padding:28px 14px 12px;border-radius:8px;overflow-x:auto;font-size:13.3px;line-height:1.6;margin:0}
+pre .c{color:var(--code-comment);font-style:italic}
+.copy{position:absolute;top:6px;right:6px;font-size:12px;padding:2px 10px;border-radius:5px;border:1px solid #444c56;background:#2d333b;color:#cdd9e5;cursor:pointer}
+.copy:hover{background:#373e47}
+:not(pre)>code{background:var(--surface-2);border:1px solid var(--border);padding:0 5px;border-radius:4px;font-size:.9em}
+/* explain list */
+.ex-title{font-size:13px;font-weight:700;color:var(--muted);margin:14px 0 4px}
+dl.ex{display:grid;grid-template-columns:minmax(150px,max-content) 1fr;margin:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:14px}
+dl.ex dt,dl.ex dd{margin:0;padding:7px 12px;border-bottom:1px solid var(--border)}
+dl.ex dt{background:var(--surface-2);font-family:"JetBrains Mono",Consolas,monospace;font-size:12.8px;word-break:break-word}
+dl.ex dt:nth-last-of-type(1),dl.ex dd:last-of-type{border-bottom:none}
+table.t{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+table.t th,table.t td{border:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top}
+table.t th{background:var(--surface-2)}
+.tbl-scroll{overflow-x:auto}
+/* diagrams */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:12px 0}
+.flow .n{flex:1 1 120px;border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:13.5px;text-align:center}
+.flow .n b{display:block;font-size:14px}
+.flow .a{align-self:center;color:var(--muted);font-weight:700}
+.flow .n.hl{border-color:var(--accent);background:var(--accent-soft)}
+.dg{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:12px 0}
+.dg .srv{border:2px solid var(--pri);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.dg .srv.s{border-color:var(--stb)}
+.dg .srv h5{margin:0 0 4px;font-size:15px}
+.dg .mid{text-align:center;font-size:12.5px;color:var(--muted)}
+.dg .mid .arr{font-size:22px;color:var(--accent);line-height:1}
+.progress{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border);padding:16px}
+  nav.side .links{display:none}
+  nav.side.open .links{display:block}
+  main{padding:20px 16px 60px}
+  .dg{grid-template-columns:1fr}
+  .dg .mid .arr{transform:rotate(90deg)}
+  dl.ex{grid-template-columns:1fr}
+  dl.ex dt{border-bottom:none}
+}
+.nav-toggle{display:none}
+@media (max-width:900px){.nav-toggle{display:inline-block;margin-top:8px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="side" id="side">
+  <div class="brand">Oracle 實作練習手冊</div>
+  <div class="sub">Linux · Oracle 19c · CDB / PDB</div>
+  <div>
+    <div style="font-size:12.5px;color:var(--muted)">整體進度 <span id="pAll">0/0</span></div>
+    <div class="progress"><i id="pBar"></i></div>
+  </div>
+  <button class="btn nav-toggle" onclick="document.getElementById('side').classList.toggle('open')">目錄 ▾</button>
+  <div class="links">
+    <h4>開始</h4>
+    <a class="lv1" href="#env">練習環境變數</a>
+    <h4>RMAN <span class="cnt" id="pR"></span></h4>
+    <a class="lv1" href="#rman-concept">觀念：Backup / Restore / Recover</a>
+    <a class="lv1" href="#rman-prep">前置準備</a>
+    <a class="lv2" href="#r1">R1 開啟 ARCHIVELOG</a>
+    <a class="lv2" href="#r2">R2 設定 FRA</a>
+    <a class="lv2" href="#r3">R3 RMAN 預設組態</a>
+    <a class="lv2" href="#r4">R4 建立練習資料</a>
+    <a class="lv1" href="#rman-backup">Backup</a>
+    <a class="lv2" href="#b1">B1 全 CDB 備份</a>
+    <a class="lv2" href="#b2">B2 增量備份</a>
+    <a class="lv2" href="#b3">B3 只備份 PDB / Root</a>
+    <a class="lv2" href="#b4">B4 檢查與維護備份</a>
+    <a class="lv1" href="#rman-restore">Restore + Recover</a>
+    <a class="lv2" href="#s1">S1 PDB 資料檔遺失</a>
+    <a class="lv2" href="#s2">S2 PDB 時間點還原</a>
+    <a class="lv2" href="#s3">S3 整個 CDB 毀損</a>
+    <a class="lv2" href="#s4">S4 還原後收尾</a>
+    <h4>Data Guard <span class="cnt" id="pD"></span></h4>
+    <a class="lv1" href="#dg-concept">觀念：Primary / Standby</a>
+    <a class="lv1" href="#dg-setup">環境設定</a>
+    <a class="lv2" href="#d1">D1 主機名稱與防火牆</a>
+    <a class="lv2" href="#d2">D2 Primary 日誌模式</a>
+    <a class="lv2" href="#d3">D3 Standby Redo Log</a>
+    <a class="lv2" href="#d4">D4 Data Guard 參數</a>
+    <a class="lv2" href="#d5">D5 Listener / TNS</a>
+    <a class="lv2" href="#d6">D6 複製密碼檔</a>
+    <a class="lv2" href="#d7">D7 Standby 啟到 NOMOUNT</a>
+    <a class="lv2" href="#d8">D8 RMAN DUPLICATE</a>
+    <a class="lv2" href="#d9">D9 啟動 Redo Apply</a>
+    <a class="lv1" href="#dg-repl">Data Replication</a>
+    <a class="lv2" href="#v1">V1 確認角色</a>
+    <a class="lv2" href="#v2">V2 確認傳送</a>
+    <a class="lv2" href="#v3">V3 確認套用與延遲</a>
+    <a class="lv2" href="#v4">V4 實際資料驗證</a>
+    <a class="lv1" href="#dg-switch">切換測試</a>
+    <a class="lv2" href="#w1">W1 切換前檢查</a>
+    <a class="lv2" href="#w2">W2 Switchover</a>
+    <a class="lv2" href="#w3">W3 驗證新角色</a>
+    <a class="lv2" href="#w4">W4 切回原角色</a>
+    <a class="lv2" href="#f1">F1 Failover + Reinstate</a>
+    <a class="lv2" href="#k1">K1（選用）Broker</a>
+    <a class="lv1" href="#trouble">常見錯誤排查</a>
+  </div>
+  <button class="theme-btn" id="themeBtn">切換深 / 淺色</button>
+</nav>
+
+<main>
+<section class="hero">
+  <h1>Oracle RMAN 與 Data Guard 實作練習</h1>
+  <p>兩大主題：<b>RMAN</b>（CDB / PDB 的 Backup、Restore、Recover）與 <b>Data Guard</b>（Primary / Standby 的環境設定、資料同步、角色切換）。每一步都附上「為什麼要這樣做」與「指令意思」，照順序做完，就能從零建立並驗證整套流程。</p>
+  <div class="card legend">
+    <span><b>為什麼</b>：這一步要解決什麼問題</span>
+    <span><b>指令意思</b>：逐行解釋關鍵字</span>
+    <span><b>預期結果</b>：做對時應該看到什麼</span>
+    <span><span class="tag pri">Primary</span> <span class="tag stb">Standby</span> <span class="tag both">兩台</span>：在哪台主機執行</span>
+    <span><span class="tag tool">SQL*Plus</span> <span class="tag tool">RMAN</span> <span class="tag tool">OS</span>：用什麼工具執行</span>
+  </div>
+  <div class="box warn"><b>練習環境專用</b>這份手冊會故意搬走資料檔、強制關機、做 Failover。請只在 VM／測試機上執行，不要在正式環境照做。模擬毀損時一律用 <code>mv</code> 搬到暫存目錄，不用 <code>rm</code>，做錯還能搬回來。</div>
+</section>
+
+<!-- ============ ENV ============ -->
+<h3 class="part" id="env">練習環境變數</h3>
+<div class="card">
+  <p style="margin-top:0">改成你自己的主機名稱與路徑，下面所有指令都會自動替換，複製就能用。設定只存在這個瀏覽器。</p>
+  <div class="env" id="envForm"></div>
+  <div class="env-actions">
+    <button class="btn" id="envReset">恢復預設值</button>
+    <button class="btn" id="progReset">清除完成進度</button>
+  </div>
+  <div class="box tip"><b>假設的環境</b>
+    <ul>
+      <li>Oracle Linux 7/8 + Oracle Database 19c（Enterprise Edition），以 <code>oracle</code> 使用者操作。</li>
+      <li>Primary 已建好一個 CDB（<code>{{CDB}}</code>），內含 PDB <code>{{PDB}}</code>；檔案系統存放（非 ASM），路徑為 <code>{{ORABASE}}/oradata/{{CDB}}</code>。</li>
+      <li>Standby 主機只安裝好相同版本的 Oracle 軟體（software only），<code>ORACLE_HOME</code> 路徑與 Primary 相同，還沒有資料庫。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ RMAN ============ -->
+<h2 class="chapter" id="rman">第一部分：RMAN<small>Recovery Manager — CDB / PDB 的備份、還原、復原</small></h2>
+
+<h3 class="part" id="rman-concept">觀念：Backup / Restore / Recover 差在哪</h3>
+<div class="card">
+  <div class="flow">
+    <div class="n"><b>Backup</b>把資料檔、控制檔、archivelog 複製成備份片</div>
+    <div class="a">→</div>
+    <div class="n"><b>發生故障</b>檔案遺失、誤刪資料</div>
+    <div class="a">→</div>
+    <div class="n hl"><b>Restore</b>從備份把檔案「拿回來」<br>資料停在備份當時</div>
+    <div class="a">→</div>
+    <div class="n hl"><b>Recover</b>套用 archived / online redo<br>把資料「往前推」</div>
+    <div class="a">→</div>
+    <div class="n"><b>Open</b>資料庫恢復服務</div>
+  </div>
+  <div class="tbl-scroll"><table class="t">
+    <tr><th>名詞</th><th>意思</th><th>練習重點</th></tr>
+    <tr><td>CDB</td><td>Container Database，容器資料庫。包含 <code>CDB$ROOT</code>、<code>PDB$SEED</code> 與所有 PDB。控制檔、redo、archivelog 都屬於 CDB 層級。</td><td>連 <code>rman target /</code> 就是連到 CDB root，<code>BACKUP DATABASE</code> 會備份全部容器。</td></tr>
+    <tr><td>PDB</td><td>Pluggable Database，插入式資料庫，應用程式實際使用的資料庫。</td><td>可以單獨備份、還原、做時間點還原，不影響其他 PDB。</td></tr>
+    <tr><td>Restore</td><td>從備份把實體檔案寫回磁碟。</td><td>只做 Restore 時，資料檔還是舊的，不能直接開啟。</td></tr>
+    <tr><td>Recover</td><td>套用 redo（archivelog + online redo），把資料推進到故障前一刻或指定 SCN／時間。</td><td>沒有完整的 archivelog 就只能還原到較早的時間點。</td></tr>
+    <tr><td>SCN</td><td>System Change Number，資料庫的內部「時間戳」，每次 commit 都會往上加。</td><td>做時間點還原時，用 SCN 比用時間更精準。</td></tr>
+  </table></div>
+</div>
+
+<h3 class="part" id="rman-prep">前置準備</h3>
+
+<section class="step" id="r1" data-mod="R">
+  <header><span class="num">R1</span><h4>確認並開啟 ARCHIVELOG 模式</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>NOARCHIVELOG 模式下，redo 寫滿後會被覆蓋，只能做「關機冷備份」，也只能還原到備份當下。開啟 ARCHIVELOG 後，每個寫滿的 redo 都會另存成 archivelog，RMAN 才能做線上（不停機）備份，也才能 Recover 到故障前一刻或任意時間點。Data Guard 也要求必須是 ARCHIVELOG。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus</span><pre><code>sqlplus / as sysdba
+
+-- 1) 先看目前模式
+SELECT log_mode FROM v$database;
+ARCHIVE LOG LIST
+
+-- 2) 若為 NOARCHIVELOG 才需要下面步驟（會短暫停機）
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE ARCHIVELOG;
+ALTER DATABASE OPEN;
+
+-- 3) 讓 PDB 跟著 CDB 自動開啟
+ALTER PLUGGABLE DATABASE ALL OPEN;
+ALTER PLUGGABLE DATABASE ALL SAVE STATE;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>sqlplus / as sysdba</dt><dd>用作業系統認證（oracle 使用者屬於 dba 群組）以 SYSDBA 身分登入目前 <code>ORACLE_SID</code> 的 CDB root。</dd>
+      <dt>v$database.log_mode</dt><dd>顯示 <code>ARCHIVELOG</code> 或 <code>NOARCHIVELOG</code>。</dd>
+      <dt>ARCHIVE LOG LIST</dt><dd>SQL*Plus 指令，一次列出模式、歸檔位置、目前 log sequence。</dd>
+      <dt>SHUTDOWN IMMEDIATE</dt><dd>回滾未提交交易、中斷連線後正常關機，資料檔處於一致狀態。</dd>
+      <dt>STARTUP MOUNT</dt><dd>開啟執行個體並讀取控制檔，但不開資料檔。修改日誌模式必須在 MOUNT 狀態。</dd>
+      <dt>ALTER DATABASE ARCHIVELOG</dt><dd>把模式記錄到控制檔，之後寫滿的 redo 會由 ARCn 程序歸檔。</dd>
+      <dt>ALTER PLUGGABLE DATABASE ALL SAVE STATE</dt><dd>記住 PDB 目前為 OPEN，下次 CDB 重啟時自動開啟，不然 PDB 預設停在 MOUNTED。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p><code>SELECT log_mode FROM v$database;</code> 顯示 <code>ARCHIVELOG</code>；<code>SHOW PDBS</code> 中 <code>{{PDB}}</code> 為 <code>READ WRITE</code>。</p></div>
+  </div>
+</section>
+
+<section class="step" id="r2" data-mod="R">
+  <header><span class="num">R2</span><h4>設定 Fast Recovery Area（FRA）</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>FRA 是 Oracle 自動管理的復原專用區，archivelog、控制檔自動備份、flashback log 預設都放在這。設定空間上限後，Oracle 會依保留政策自動清掉過期檔案。若 FRA 塞滿，archivelog 寫不出去，整個資料庫會停住（ORA-00257），所以大小一定要抓夠。</p></div>
+    <div class="codewrap"><span class="label">OS + SQL*Plus</span><pre><code># OS：建立目錄（備份片另外放一個目錄，方便觀察）
+mkdir -p {{ORABASE}}/fast_recovery_area
+mkdir -p {{BKP}}
+
+-- SQL*Plus：先設大小、再設路徑（順序不能反）
+ALTER SYSTEM SET db_recovery_file_dest_size = 20G SCOPE=BOTH;
+ALTER SYSTEM SET db_recovery_file_dest = '{{ORABASE}}/fast_recovery_area' SCOPE=BOTH;
+
+-- 查使用率
+SELECT name, space_limit/1024/1024/1024 AS limit_gb,
+       space_used/1024/1024/1024 AS used_gb
+FROM   v$recovery_file_dest;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>db_recovery_file_dest_size</dt><dd>FRA 可使用的空間上限。必須先設定，否則設定路徑時會出現 ORA-19802。</dd>
+      <dt>db_recovery_file_dest</dt><dd>FRA 的目錄。設定後 archivelog 預設會寫到 <code>&lt;FRA&gt;/{{CDB}}/archivelog/日期/</code>。</dd>
+      <dt>SCOPE=BOTH</dt><dd>同時改目前記憶體中的值與 spfile，重啟後仍有效。</dd>
+      <dt>v$recovery_file_dest</dt><dd>查看 FRA 的上限、已使用、可回收的空間。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="r3" data-mod="R">
+  <header><span class="num">R3</span><h4>連線 RMAN 並設定預設組態</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>先把常用設定存成預設值（CONFIGURE），之後每次備份只要下很短的指令，行為也一致。其中最重要的是<b>控制檔自動備份</b>：控制檔記錄了所有備份片的位置，若控制檔也遺失，就要靠 autobackup 找回它，否則 RMAN 不知道備份在哪。</p></div>
+    <div class="codewrap"><span class="label">RMAN</span><pre><code>rman target /
+
+SHOW ALL;
+
+CONFIGURE CONTROLFILE AUTOBACKUP ON;
+CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '{{BKP}}/cf_%F';
+CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 7 DAYS;
+CONFIGURE DEVICE TYPE DISK PARALLELISM 2 BACKUP TYPE TO COMPRESSED BACKUPSET;
+CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT '{{BKP}}/%d_%T_%U.bkp';
+CONFIGURE ARCHIVELOG DELETION POLICY TO BACKED UP 1 TIMES TO DISK;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>rman target /</dt><dd>以 OS 認證連到目前 <code>ORACLE_SID</code> 的資料庫（CDB root）。target 就是「要被備份／還原的資料庫」。</dd>
+      <dt>SHOW ALL</dt><dd>列出所有 RMAN 組態，有 <code># default</code> 字樣的代表還沒改過。</dd>
+      <dt>CONTROLFILE AUTOBACKUP ON</dt><dd>每次備份結束、或結構變更（加資料檔）時，自動備份控制檔與 spfile。</dd>
+      <dt>AUTOBACKUP FORMAT ... '%F'</dt><dd>控制檔備份的檔名格式。<code>%F</code> 會產生含 DBID 與日期的檔名（c-DBID-日期-序號），還原時 RMAN 靠這個格式去找。</dd>
+      <dt>RECOVERY WINDOW OF 7 DAYS</dt><dd>保留政策：保證可以還原到過去 7 天內任一時間點，超出的備份會被判定為 OBSOLETE。</dd>
+      <dt>PARALLELISM 2</dt><dd>同時開 2 個 channel（備份程序）並行處理，加快速度。</dd>
+      <dt>COMPRESSED BACKUPSET</dt><dd>以壓縮的 backupset 格式輸出，只備份用過的區塊，體積較小。</dd>
+      <dt>FORMAT '%d_%T_%U.bkp'</dt><dd>備份片檔名：<code>%d</code> 資料庫名、<code>%T</code> 日期 YYYYMMDD、<code>%U</code> 保證唯一的識別碼。</dd>
+      <dt>ARCHIVELOG DELETION POLICY</dt><dd>archivelog 至少被備份過 1 次後才允許刪除，避免刪掉還沒備份的 log。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>每個 CONFIGURE 都回應 <code>new RMAN configuration parameters are successfully stored</code>。</p></div>
+  </div>
+</section>
+
+<section class="step" id="r4" data-mod="R">
+  <header><span class="num">R4</span><h4>建立練習資料，並記下 DBID</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>要有自己的資料表，還原後才能用筆數驗證「資料真的回來了」。把練習資料放在獨立的 tablespace，模擬單一資料檔遺失時就不會動到系統檔。DBID 是資料庫的唯一識別碼，控制檔全部遺失時 RMAN 要靠它找自動備份，所以要事先記下來（正式環境應寫進維運文件）。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus</span><pre><code>sqlplus / as sysdba
+
+-- 記下 DBID（S3 情境會用到）
+SELECT dbid, name FROM v$database;
+
+-- 切到 PDB 建練習資料
+ALTER SESSION SET CONTAINER = {{PDB}};
+
+CREATE TABLESPACE lab_ts
+  DATAFILE '{{ORABASE}}/oradata/{{CDB}}/{{PDB}}/lab_ts01.dbf' SIZE 100M;
+
+CREATE USER lab IDENTIFIED BY lab
+  DEFAULT TABLESPACE lab_ts QUOTA UNLIMITED ON lab_ts;
+
+CREATE TABLE lab.t1 AS SELECT * FROM all_objects;
+SELECT COUNT(*) FROM lab.t1;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>ALTER SESSION SET CONTAINER</dt><dd>把目前連線切換到指定的 PDB，之後的 SQL 都在該 PDB 執行。</dd>
+      <dt>CREATE TABLESPACE ... DATAFILE</dt><dd>建立表空間並指定實體資料檔路徑。若資料庫使用 OMF，可以省略路徑。</dd>
+      <dt>QUOTA UNLIMITED ON lab_ts</dt><dd>允許 lab 使用者在 lab_ts 上無限制使用空間，否則建表會出現 ORA-01950。</dd>
+      <dt>CREATE TABLE ... AS SELECT</dt><dd>用查詢結果建表，快速灌入幾萬筆測試資料。</dd>
+    </dl>
+    <div class="box warn"><b>注意</b><p>練習資料一定要在 B1 備份<b>之前</b>建立。若先備份才建 tablespace，備份裡就沒有這個資料檔（雖然 RMAN 仍能用 archivelog 重建，但不是這份練習要看的情境）。</p></div>
+  </div>
+</section>
+
+<h3 class="part" id="rman-backup">Backup：備份</h3>
+
+<section class="step" id="b1" data-mod="R">
+  <header><span class="num">B1</span><h4>全 CDB 線上備份（含 archivelog）</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>線上備份時資料仍在變動，備份出來的資料檔各自停在不同時間點（不一致）。還原時一定要搭配備份期間產生的 archivelog 才能 Recover 成一致狀態，所以用 <code>PLUS ARCHIVELOG</code> 把它們一起備份。從 CDB root 執行 <code>BACKUP DATABASE</code> 會涵蓋 root、seed 與所有 PDB。</p></div>
+    <div class="codewrap"><span class="label">RMAN</span><pre><code>rman target /
+
+BACKUP DATABASE PLUS ARCHIVELOG;
+
+-- 看剛剛做了什麼
+LIST BACKUP SUMMARY;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>BACKUP DATABASE</dt><dd>備份所有資料檔（CDB root + PDB$SEED + 所有 PDB）。因為 autobackup 已開，結束時會自動備份控制檔與 spfile。</dd>
+      <dt>PLUS ARCHIVELOG</dt><dd>RMAN 實際流程：① 切換 log 並備份現有 archivelog → ② 備份資料檔 → ③ 再切換 log，備份備份期間產生的 archivelog。確保備份本身就能復原到一致。</dd>
+      <dt>LIST BACKUP SUMMARY</dt><dd>列出備份清單，<code>TY</code> 欄位 B=backupset，<code>LV</code> 欄位 F=full、A=archivelog、0/1=增量層級。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>最後顯示 <code>Finished Control File and SPFILE Autobackup</code>；<code>ls {{BKP}}</code> 可以看到多個 <code>.bkp</code> 與 <code>cf_c-...</code> 檔案。</p></div>
+  </div>
+</section>
+
+<section class="step" id="b2" data-mod="R">
+  <header><span class="num">B2</span><h4>增量備份：Level 0 / Level 1</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>每天做全備份很耗時間與空間。常見做法是每週做一次 Level 0（基準），每天做 Level 1（只備份變動過的區塊）。注意：B1 的 <code>BACKUP DATABASE</code> 是「full」，<b>不能</b>當作增量的基準，增量一定要從 Level 0 開始。</p></div>
+    <div class="codewrap"><span class="label">RMAN</span><pre><code>-- 基準備份（例如每週日）
+BACKUP INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;
+
+-- 模擬資料異動（在另一個 SQL*Plus 視窗）
+--   ALTER SESSION SET CONTAINER = {{PDB}};
+--   INSERT INTO lab.t1 SELECT * FROM lab.t1 WHERE ROWNUM &lt;= 1000; COMMIT;
+
+-- 差異增量（例如週一到週六）
+BACKUP INCREMENTAL LEVEL 1 DATABASE PLUS ARCHIVELOG;
+
+-- 累積增量（自上次 Level 0 以來所有變動）
+BACKUP INCREMENTAL LEVEL 1 CUMULATIVE DATABASE;
+
+LIST BACKUP SUMMARY;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>INCREMENTAL LEVEL 0</dt><dd>內容等同全備份，但會被標記為增量基準，後續 Level 1 以它為起點。</dd>
+      <dt>INCREMENTAL LEVEL 1</dt><dd>預設為 differential（差異）：只備份自上一次 Level 0 或 Level 1 以來變動的區塊，最小最快。</dd>
+      <dt>CUMULATIVE</dt><dd>累積增量：備份自上一次 Level 0 以來所有變動。體積較大，但還原時要套用的增量片數較少。</dd>
+    </dl>
+    <div class="box tip"><b>延伸</b><p>開啟 Block Change Tracking 可以讓 Level 1 不必掃描整個資料檔：<code>ALTER DATABASE ENABLE BLOCK CHANGE TRACKING USING FILE '{{ORABASE}}/oradata/{{CDB}}/bct.chg';</code>（Enterprise Edition 功能）</p></div>
+  </div>
+</section>
+
+<section class="step" id="b3" data-mod="R">
+  <header><span class="num">B3</span><h4>只備份單一 PDB 或 CDB Root</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>某個 PDB 要做大型變更（升版、匯入大量資料）前，只需要先備份那個 PDB，不用整個 CDB 都備。理解 CDB 與 PDB 備份範圍的差別，也是後續 PDB 還原的基礎。</p></div>
+    <div class="codewrap"><span class="label">RMAN</span><pre><code>-- 方法 A：連在 CDB root（建議）
+rman target /
+BACKUP PLUGGABLE DATABASE {{PDB}} PLUS ARCHIVELOG;
+BACKUP DATABASE ROOT;
+LIST BACKUP OF PLUGGABLE DATABASE {{PDB}};
+
+-- 方法 B：直接連到 PDB（透過 listener service）
+rman target sys@{{PDB}}
+BACKUP DATABASE;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>BACKUP PLUGGABLE DATABASE {{PDB}}</dt><dd>只備份該 PDB 的資料檔。可以一次列多個，用逗號分隔。</dd>
+      <dt>BACKUP DATABASE ROOT</dt><dd>只備份 <code>CDB$ROOT</code> 的資料檔（SYSTEM、SYSAUX、UNDO、USERS）。</dd>
+      <dt>rman target sys@{{PDB}}</dt><dd>直接連 PDB，此時 <code>BACKUP DATABASE</code> 只會備份這個 PDB。</dd>
+    </dl>
+    <div class="box warn"><b>注意</b><p>archivelog 屬於 CDB 層級，連在 PDB 時無法備份 archivelog，也無法做 PDB 還原。所以實務上建議一律從 CDB root 操作（方法 A）。</p></div>
+  </div>
+</section>
+
+<section class="step" id="b4" data-mod="R">
+  <header><span class="num">B4</span><h4>檢查、驗證與清理備份</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>「有備份」不等於「能還原」。<code>VALIDATE</code> 會實際讀取備份片確認可用，不會真的寫回檔案。<code>CROSSCHECK</code> 會比對紀錄與磁碟，抓出被手動刪除的備份。定期清掉過期備份，FRA 與備份目錄才不會塞滿。</p></div>
+    <div class="codewrap"><span class="label">RMAN</span><pre><code>REPORT SCHEMA;                      -- 列出所有資料檔與編號（還原時常用）
+REPORT NEED BACKUP;                 -- 依保留政策，哪些檔案還需要備份
+
+RESTORE DATABASE VALIDATE;          -- 模擬還原：只讀不寫，確認備份片可用
+RESTORE PLUGGABLE DATABASE {{PDB}} VALIDATE;
+BACKUP VALIDATE CHECK LOGICAL DATABASE;   -- 檢查資料檔本身有無壞塊
+
+CROSSCHECK BACKUP;
+CROSSCHECK ARCHIVELOG ALL;
+DELETE NOPROMPT EXPIRED BACKUP;
+REPORT OBSOLETE;
+DELETE NOPROMPT OBSOLETE;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>REPORT SCHEMA</dt><dd>顯示每個資料檔的編號（File）、所屬容器、tablespace 與路徑。</dd>
+      <dt>RESTORE ... VALIDATE</dt><dd>走一遍還原流程，挑出需要的備份片並讀取檢查，但不寫入資料檔。是最安全的還原演練。</dd>
+      <dt>BACKUP VALIDATE CHECK LOGICAL</dt><dd>不產生備份，只掃描線上資料檔的實體與邏輯損壞，結果寫入 <code>v$database_block_corruption</code>。</dd>
+      <dt>CROSSCHECK</dt><dd>逐一確認紀錄中的備份檔是否還在磁碟上，找不到的標記為 EXPIRED。</dd>
+      <dt>DELETE EXPIRED</dt><dd>只刪除「紀錄」，因為實體檔案本來就不在了。</dd>
+      <dt>REPORT / DELETE OBSOLETE</dt><dd>依 R3 設定的 7 天保留政策，列出／刪除已經不需要的備份（實體檔案也會刪）。</dd>
+    </dl>
+  </div>
+</section>
+
+<h3 class="part" id="rman-restore">Restore + Recover：三個故障情境</h3>
+<div class="card">
+  <div class="tbl-scroll"><table class="t">
+    <tr><th>情境</th><th>故障</th><th>還原範圍</th><th>資料遺失</th><th>CDB 需停機</th></tr>
+    <tr><td>S1</td><td>PDB 的一個資料檔不見</td><td>單一資料檔</td><td>不會（完整復原）</td><td>不用，只關該 PDB</td></tr>
+    <tr><td>S2</td><td>使用者誤刪資料表</td><td>整個 PDB 回到過去某個 SCN</td><td>該 SCN 之後的 PDB 異動都會消失</td><td>不用，只關該 PDB</td></tr>
+    <tr><td>S3</td><td>控制檔 + 所有資料檔遺失</td><td>整個 CDB</td><td>online redo 還在就不會</td><td>要</td></tr>
+  </table></div>
+</div>
+
+<section class="step" id="s1" data-mod="R">
+  <header><span class="num">S1</span><h4>情境一：PDB 單一資料檔遺失</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><span class="tag tool">OS</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>這是最常見也最小範圍的故障。只要還原那一個檔案、再用 archivelog 把它推進到最新，其他 PDB 完全不受影響，也不會遺失資料。先把 PDB 關閉再搬檔案：Linux 上被開啟中的檔案即使被搬走，Oracle 仍握有檔案代碼，錯誤不會立刻出現，關閉後再開就能穩定重現 ORA-01157。</p></div>
+    <div class="codewrap"><span class="label">① 模擬故障</span><pre><code>-- SQL*Plus（CDB root）
+ALTER PLUGGABLE DATABASE {{PDB}} CLOSE IMMEDIATE;
+
+# OS：把資料檔搬走（模擬遺失）
+mkdir -p /tmp/lab_broken
+mv {{ORABASE}}/oradata/{{CDB}}/{{PDB}}/lab_ts01.dbf /tmp/lab_broken/
+
+-- SQL*Plus：嘗試開啟
+ALTER PLUGGABLE DATABASE {{PDB}} OPEN;
+-- 會出現 ORA-01157: cannot identify/lock data file NN
+--        ORA-01110: data file NN: '.../lab_ts01.dbf'</code></pre></div>
+    <div class="codewrap"><span class="label">② 還原 + 復原</span><pre><code>rman target /
+
+REPORT SCHEMA;    -- 確認遺失檔案的編號與路徑
+
+RESTORE DATAFILE '{{ORABASE}}/oradata/{{CDB}}/{{PDB}}/lab_ts01.dbf';
+RECOVER DATAFILE '{{ORABASE}}/oradata/{{CDB}}/{{PDB}}/lab_ts01.dbf';
+
+ALTER PLUGGABLE DATABASE {{PDB}} OPEN;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>CLOSE IMMEDIATE</dt><dd>關閉指定 PDB（變成 MOUNTED），CDB 與其他 PDB 照常服務。</dd>
+      <dt>ORA-01157</dt><dd>Oracle 開檔時找不到或無法鎖定資料檔，錯誤訊息中的 NN 就是資料檔編號。</dd>
+      <dt>RESTORE DATAFILE '路徑'</dt><dd>從最近一份可用備份把該檔案寫回原位置。也可以寫檔案編號，例如 <code>RESTORE DATAFILE 13;</code>。</dd>
+      <dt>RECOVER DATAFILE</dt><dd>套用備份之後產生的 archivelog 與 online redo，把檔案推進到和資料庫其他部分相同的 SCN。RMAN 會自動找出需要的 log，必要時也會從備份還原 archivelog。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>PDB 成功開啟；<code>ALTER SESSION SET CONTAINER={{PDB}}; SELECT COUNT(*) FROM lab.t1;</code> 筆數與故障前相同（包含 B2 時新增的資料）。</p></div>
+    <div class="box tip"><b>變化練習</b><p>若整個 PDB 的資料檔都不見，可以改用 PDB 層級：<code>RESTORE PLUGGABLE DATABASE {{PDB}}; RECOVER PLUGGABLE DATABASE {{PDB}};</code></p></div>
+  </div>
+</section>
+
+<section class="step" id="s2" data-mod="R">
+  <header><span class="num">S2</span><h4>情境二：誤刪資料表 → PDB 時間點還原（PITR）</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>誤刪資料是「邏輯錯誤」，檔案本身沒壞，所以 S1 的完整復原沒用（只會把刪除動作也套用回來）。這時要把 PDB 還原回「刪除之前」的 SCN，也就是 Point-In-Time Recovery。代價是：該 SCN 之後這個 PDB 所有的異動都會消失，但其他 PDB 不受影響。</p></div>
+    <div class="codewrap"><span class="label">① 記錄 SCN 並模擬誤刪</span><pre><code>sqlplus / as sysdba
+
+-- 確認 PDB 使用 local undo（12.2 之後預設為 TRUE）
+SELECT property_value FROM database_properties
+WHERE  property_name = 'LOCAL_UNDO_ENABLED';
+
+ALTER SESSION SET CONTAINER = {{PDB}};
+SELECT COUNT(*) FROM lab.t1;          -- 記下筆數
+SELECT current_scn FROM v$database;   -- 記下 SCN，例如 3456789
+
+DROP TABLE lab.t1 PURGE;              -- 模擬誤刪（PURGE 不進資源回收筒）
+ALTER SESSION SET CONTAINER = CDB$ROOT;
+ALTER SYSTEM SWITCH LOGFILE;          -- 讓刪除動作進入 archivelog</code></pre></div>
+    <div class="codewrap"><span class="label">② PDB PITR</span><pre><code>rman target /
+
+ALTER PLUGGABLE DATABASE {{PDB}} CLOSE IMMEDIATE;
+
+RUN {
+  SET UNTIL SCN 3456789;              # ← 換成上一步記下的 SCN
+  RESTORE PLUGGABLE DATABASE {{PDB}};
+  RECOVER PLUGGABLE DATABASE {{PDB}};
+}
+
+ALTER PLUGGABLE DATABASE {{PDB}} OPEN RESETLOGS;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>LOCAL_UNDO_ENABLED</dt><dd>每個 PDB 有自己的 undo。為 TRUE 時 PDB PITR 直接就地完成；為 FALSE 時需加上 <code>AUXILIARY DESTINATION '/路徑'</code>，讓 RMAN 建立暫時的輔助執行個體。</dd>
+      <dt>current_scn</dt><dd>目前資料庫的 SCN。實務上若沒事先記錄，可用時間：<code>SET UNTIL TIME "TO_DATE('2026-11-04 10:30:00','YYYY-MM-DD HH24:MI:SS')"</code>。</dd>
+      <dt>DROP TABLE ... PURGE</dt><dd>直接刪除，不放進 recyclebin，所以無法用 <code>FLASHBACK TABLE ... TO BEFORE DROP</code> 救回，必須靠 RMAN。</dd>
+      <dt>RUN { }</dt><dd>把多個指令包成一組執行，<code>SET UNTIL</code> 只在這個區塊內生效。</dd>
+      <dt>SET UNTIL SCN n</dt><dd>指定復原終點：Recover 會停在 SCN n 之前，不會套用之後的 redo。</dd>
+      <dt>RESTORE / RECOVER PLUGGABLE DATABASE</dt><dd>只還原、復原該 PDB 的資料檔。</dd>
+      <dt>OPEN RESETLOGS</dt><dd>不完整復原後必須用 RESETLOGS 開啟，代表這個 PDB 開始新的「化身（incarnation）」，之前的時間線被截斷。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p><code>SELECT COUNT(*) FROM lab.t1;</code> 筆數與誤刪前相同。</p></div>
+    <div class="box tip"><b>延伸：只救一張表</b><p>若不想讓整個 PDB 倒退，RMAN 也能只救回單一資料表（會在背景建立輔助資料庫再匯出匯入）：<br><code>RECOVER TABLE lab.t1 OF PLUGGABLE DATABASE {{PDB}} UNTIL SCN 3456789 AUXILIARY DESTINATION '/tmp/aux' REMAP TABLE lab.t1:t1_restored;</code></p></div>
+  </div>
+</section>
+
+<section class="step" id="s3" data-mod="R">
+  <header><span class="num">S3</span><h4>情境三：控制檔與所有資料檔遺失（整個 CDB）</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><span class="tag tool">OS</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>這是最嚴重的情境：控制檔不見，RMAN 連備份清單都沒有。復原順序一定是「<b>控制檔 → MOUNT → 資料檔 → Recover → OPEN</b>」：沒有控制檔就無法 MOUNT，沒有 MOUNT 就無法還原資料檔。這裡刻意保留 online redo log，所以仍可以復原到故障前一刻。</p></div>
+    <div class="codewrap"><span class="label">① 確認檔案位置並模擬毀損</span><pre><code>sqlplus / as sysdba
+SELECT name FROM v$controlfile;   -- 確認控制檔路徑
+SELECT name FROM v$datafile;      -- 確認資料檔路徑
+SELECT dbid FROM v$database;      -- 再次確認 DBID
+SHUTDOWN ABORT;
+
+# OS：搬走控制檔與資料檔（保留 redo log、spfile、密碼檔）
+mkdir -p /tmp/lab_broken_cdb/{root,pdbseed,pdb}
+mv {{ORABASE}}/oradata/{{CDB}}/*.dbf           /tmp/lab_broken_cdb/root/
+mv {{ORABASE}}/oradata/{{CDB}}/pdbseed/*.dbf   /tmp/lab_broken_cdb/pdbseed/
+mv {{ORABASE}}/oradata/{{CDB}}/{{PDB}}/*.dbf  /tmp/lab_broken_cdb/pdb/
+mv {{ORABASE}}/oradata/{{CDB}}/control01.ctl   /tmp/lab_broken_cdb/
+mv {{ORABASE}}/fast_recovery_area/{{CDB}}/control02.ctl /tmp/lab_broken_cdb/
+# ↑ 控制檔路徑以 v$controlfile 查到的為準</code></pre></div>
+    <div class="codewrap"><span class="label">② 還原控制檔 → 資料檔 → 復原</span><pre><code>rman target /
+
+SET DBID 1234567890;                 # ← 換成 R4 記下的 DBID
+STARTUP NOMOUNT;
+
+RUN {
+  SET CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '{{BKP}}/cf_%F';
+  RESTORE CONTROLFILE FROM AUTOBACKUP;
+}
+
+ALTER DATABASE MOUNT;
+
+RESTORE DATABASE;
+RECOVER DATABASE;
+
+ALTER DATABASE OPEN RESETLOGS;
+ALTER PLUGGABLE DATABASE ALL OPEN;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>SHUTDOWN ABORT</dt><dd>立即終止執行個體，不做 checkpoint，等同斷電，用來模擬當機。</dd>
+      <dt>SET DBID</dt><dd>控制檔遺失時，RMAN 不知道自己面對哪個資料庫，需要 DBID 才能比對 autobackup 檔名中的 c-DBID-...。</dd>
+      <dt>STARTUP NOMOUNT</dt><dd>只用 spfile 啟動執行個體（記憶體與背景程序），不讀控制檔。這是還原控制檔唯一能用的狀態。</dd>
+      <dt>SET CONTROLFILE AUTOBACKUP FORMAT</dt><dd>R3 設定的格式存在控制檔裡，控制檔沒了 RMAN 就不知道，所以要在 RUN 區塊中再告訴它一次。若 autobackup 放在 FRA 預設位置則可省略。</dd>
+      <dt>RESTORE CONTROLFILE FROM AUTOBACKUP</dt><dd>找到最新的控制檔自動備份，寫回 <code>control_files</code> 參數指定的所有位置。</dd>
+      <dt>ALTER DATABASE MOUNT</dt><dd>讀取剛還原的控制檔，RMAN 才看得到備份清單。</dd>
+      <dt>RESTORE DATABASE</dt><dd>還原所有容器的資料檔。</dd>
+      <dt>RECOVER DATABASE</dt><dd>依序套用 archivelog，最後再套用仍存在的 online redo，推到故障前一刻。</dd>
+      <dt>OPEN RESETLOGS</dt><dd>使用「備份的控制檔」後一定要 RESETLOGS：會重建 online redo、log sequence 從 1 重新開始，產生新的 incarnation。</dd>
+    </dl>
+    <div class="box warn"><b>可能遇到</b><p>若 online redo 也一起遺失，<code>RECOVER DATABASE</code> 會在最後一個 archivelog 停下並出現 RMAN-06054（要求一個不存在的 log）。這代表最後幾筆交易救不回來，改用 <code>RUN { SET UNTIL SEQUENCE n THREAD 1; RECOVER DATABASE; }</code> 停在可用的最後一個 log，再 <code>OPEN RESETLOGS</code>。</p></div>
+    <div class="box ok"><b>預期結果</b><p><code>SHOW PDBS</code> 全部為 READ WRITE，<code>lab.t1</code> 資料完整；temp file 會在開啟時自動重建。</p></div>
+  </div>
+</section>
+
+<section class="step" id="s4" data-mod="R">
+  <header><span class="num">S4</span><h4>還原後收尾：驗證與重新備份</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>RESETLOGS 之後進入新的 incarnation，舊備份雖然仍可以用，但把新時間線的備份補齊才是安全狀態。另外要確認資料檔都沒有標記需要復原，練習用的暫存檔案也要清掉。</p></div>
+    <div class="codewrap"><span class="label">RMAN + SQL*Plus</span><pre><code>rman target /
+LIST INCARNATION OF DATABASE;        -- 會看到 CURRENT 的新 incarnation
+BACKUP DATABASE PLUS ARCHIVELOG;     -- 立刻做一份新的全備份
+
+-- SQL*Plus：確認沒有檔案需要復原
+SELECT * FROM v$recover_file;        -- 應為 no rows selected
+SELECT con_id, name, open_mode FROM v$pdbs;
+
+# OS：確認還原成功後再清掉練習的暫存檔
+rm -rf /tmp/lab_broken /tmp/lab_broken_cdb</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>LIST INCARNATION</dt><dd>列出資料庫的時間線分支。每次 RESETLOGS 都會產生一個新的 incarnation。</dd>
+      <dt>v$recover_file</dt><dd>列出需要做 media recovery 的資料檔，沒有資料代表全部正常。</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ============ DATA GUARD ============ -->
+<h2 class="chapter" id="dataguard">第二部分：Data Guard<small>Physical Standby — 環境設定、資料同步、角色切換</small></h2>
+
+<h3 class="part" id="dg-concept">觀念：Primary / Standby 怎麼同步</h3>
+<div class="card">
+  <div class="dg">
+    <div class="srv">
+      <h5>Primary：{{PRI_HOST}}</h5>
+      <div class="mono" style="font-size:12.5px">{{PRI_IP}}<br>DB_NAME={{CDB}}<br>DB_UNIQUE_NAME={{CDB}}<br>ORACLE_SID={{CDB}}</div>
+      <div style="margin-top:6px">正常讀寫，產生 redo</div>
+    </div>
+    <div class="mid"><div class="arr">⟶</div>redo transport<br>（LNS/TT 程序）<br>log_archive_dest_2</div>
+    <div class="srv s">
+      <h5>Standby：{{STB_HOST}}</h5>
+      <div class="mono" style="font-size:12.5px">{{STB_IP}}<br>DB_NAME={{CDB}}<br>DB_UNIQUE_NAME={{STB}}<br>ORACLE_SID={{STB}}</div>
+      <div style="margin-top:6px">MOUNT 狀態，RFS 接收 → MRP 套用</div>
+    </div>
+  </div>
+  <div class="tbl-scroll"><table class="t">
+    <tr><th>名詞</th><th>意思</th></tr>
+    <tr><td>DB_NAME / DB_UNIQUE_NAME</td><td>兩邊的 DB_NAME 必須相同（同一個資料庫），DB_UNIQUE_NAME 必須不同，Data Guard 用它識別每個成員。</td></tr>
+    <tr><td>Redo Transport</td><td>Primary 把 redo 即時傳到 Standby。ASYNC 不等 Standby 回應（效能優先），SYNC 要等 Standby 寫入才 commit（零資料遺失）。</td></tr>
+    <tr><td>RFS / MRP</td><td>RFS（Remote File Server）在 Standby 接收 redo，寫進 Standby Redo Log；MRP（Managed Recovery Process）把 redo 套用到資料檔。</td></tr>
+    <tr><td>Switchover</td><td>計畫性角色互換（維護、演練），兩邊都正常，<b>零資料遺失</b>，之後可以切回。</td></tr>
+    <tr><td>Failover</td><td>Primary 掛掉時，把 Standby 強制升為 Primary。舊 Primary 必須 reinstate 或重建才能回到 Data Guard。</td></tr>
+  </table></div>
+  <div class="box tip"><b>執行方式</b><p>這份手冊用 <b>SQL 指令手動設定</b>，方便理解每個參數的作用；Broker（DGMGRL）放在 K1 當選用，兩種方式不要混用。</p></div>
+</div>
+
+<h3 class="part" id="dg-setup">環境設定</h3>
+
+<section class="step" id="d1" data-mod="D">
+  <header><span class="num">D1</span><h4>主機名稱解析與防火牆</h4><span class="tag both">兩台</span><span class="tag tool">OS（root）</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>redo 傳送、RMAN DUPLICATE、切換時的重新連線，全部都透過 Oracle Net（預設 1521 port）。兩台必須能用主機名稱互相找到對方，而且防火牆要放行，否則後面會一直卡在 ORA-12541 / ORA-12170。</p></div>
+    <div class="codewrap"><span class="label">OS（root，兩台都做）</span><pre><code># /etc/hosts 加入兩台
+cat &gt;&gt; /etc/hosts &lt;&lt;EOF
+{{PRI_IP}}   {{PRI_HOST}}
+{{STB_IP}}   {{STB_HOST}}
+EOF
+
+# 開放 listener port
+firewall-cmd --permanent --add-port=1521/tcp
+firewall-cmd --reload
+
+# 互相測試
+ping -c 2 {{PRI_HOST}}
+ping -c 2 {{STB_HOST}}</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>/etc/hosts</dt><dd>本機的名稱對照表，不依賴 DNS，練習環境最穩定。</dd>
+      <dt>firewall-cmd --permanent --add-port</dt><dd>在 firewalld 永久規則中開放 TCP 1521。<code>--reload</code> 讓規則立即生效。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="d2" data-mod="D">
+  <header><span class="num">D2</span><h4>Primary：ARCHIVELOG、FORCE LOGGING、FLASHBACK</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>Standby 完全靠 redo 同步。如果有人用 <code>NOLOGGING</code> 載入資料，這些變更不會產生 redo，Standby 上對應的區塊就會壞掉。<code>FORCE LOGGING</code> 強制所有動作都寫 redo。<code>FLASHBACK</code> 不是必要條件，但做 Failover 後要把舊 Primary 救回來（reinstate），必須靠它倒回時間點，否則只能整個重建。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Primary）</span><pre><code>sqlplus / as sysdba
+
+SELECT log_mode, force_logging, flashback_on FROM v$database;
+
+-- 若還不是 ARCHIVELOG，先做 RMAN 章節的 R1
+ALTER DATABASE FORCE LOGGING;
+ALTER SYSTEM SET db_flashback_retention_target = 1440 SCOPE=BOTH;
+ALTER DATABASE FLASHBACK ON;
+
+SELECT log_mode, force_logging, flashback_on FROM v$database;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>FORCE LOGGING</dt><dd>資料庫層級強制記錄 redo，忽略物件或語句上的 NOLOGGING。</dd>
+      <dt>db_flashback_retention_target</dt><dd>希望 flashback log 能倒回多久，單位分鐘（1440 = 1 天）。flashback log 存在 FRA，需要 R2 的 FRA 已設定。</dd>
+      <dt>FLASHBACK ON</dt><dd>開始產生 flashback log，19c 可在 OPEN 狀態下直接開啟。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>三個欄位分別為 <code>ARCHIVELOG</code>、<code>YES</code>、<code>YES</code>。</p></div>
+  </div>
+</section>
+
+<section class="step" id="d3" data-mod="D">
+  <header><span class="num">D3</span><h4>Primary：建立 Standby Redo Log（SRL）</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>Standby 收到的 redo 先寫進 SRL，才能做「即時套用（Real-Time Apply）」，不用等 Primary 切換 log 才同步，延遲從幾分鐘降到幾秒。在 Primary 也建好 SRL 有兩個好處：DUPLICATE 時會一起複製到 Standby，而且 Switchover 後舊 Primary 變成 Standby 時馬上就能用。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Primary）</span><pre><code>-- 看現有 online redo 的組數與大小
+SELECT group#, thread#, bytes/1024/1024 AS mb FROM v$log;
+SELECT group#, member FROM v$logfile ORDER BY group#;
+
+-- 假設 online redo 有 3 組、每組 200M → SRL 建 4 組、每組 200M
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 11 ('{{ORABASE}}/oradata/{{CDB}}/srl11.log') SIZE 200M;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 12 ('{{ORABASE}}/oradata/{{CDB}}/srl12.log') SIZE 200M;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 13 ('{{ORABASE}}/oradata/{{CDB}}/srl13.log') SIZE 200M;
+ALTER DATABASE ADD STANDBY LOGFILE THREAD 1 GROUP 14 ('{{ORABASE}}/oradata/{{CDB}}/srl14.log') SIZE 200M;
+
+SELECT group#, thread#, bytes/1024/1024 AS mb, status FROM v$standby_log;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>v$log</dt><dd>online redo 的組別、大小、狀態。SRL 大小必須與它<b>相同</b>。</dd>
+      <dt>ADD STANDBY LOGFILE</dt><dd>建立 Standby 專用的 redo log 組，Primary 角色時不會被使用。</dd>
+      <dt>組數規則</dt><dd>每個 thread 的 SRL 組數 = online redo 組數 + 1，確保 Standby 來不及歸檔時仍有空的 SRL 可接收。</dd>
+      <dt>GROUP 11~14</dt><dd>組號不能與 online redo 重複，用 11 起跳方便辨識。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="d4" data-mod="D">
+  <header><span class="num">D4</span><h4>Primary：設定 Data Guard 初始化參數</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>這組參數告訴 Primary：Data Guard 成員有誰、redo 要送到哪、怎麼送；也預先寫好「當自己變成 Standby 時」要向誰補 log。之後 DUPLICATE 會以這份 spfile 為基礎產生 Standby 的參數，所以在 Primary 先設好最省事。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Primary）</span><pre><code>SHOW PARAMETER db_unique_name      -- 確認為 {{CDB}}
+
+ALTER SYSTEM SET log_archive_config = 'DG_CONFIG=({{CDB}},{{STB}})' SCOPE=BOTH;
+
+ALTER SYSTEM SET log_archive_dest_1 =
+  'LOCATION=USE_DB_RECOVERY_FILE_DEST VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME={{CDB}}'
+  SCOPE=BOTH;
+
+ALTER SYSTEM SET log_archive_dest_2 =
+  'SERVICE={{STB}} ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME={{STB}}'
+  SCOPE=BOTH;
+ALTER SYSTEM SET log_archive_dest_state_2 = ENABLE SCOPE=BOTH;
+
+ALTER SYSTEM SET fal_server = '{{STB}}' SCOPE=BOTH;
+ALTER SYSTEM SET standby_file_management = AUTO SCOPE=BOTH;
+ALTER SYSTEM SET log_archive_max_processes = 4 SCOPE=BOTH;
+
+SHOW PARAMETER remote_login_passwordfile   -- 應為 EXCLUSIVE</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>log_archive_config DG_CONFIG</dt><dd>列出這組 Data Guard 的所有 DB_UNIQUE_NAME，只有名單中的資料庫可以互傳 redo。</dd>
+      <dt>log_archive_dest_1 LOCATION</dt><dd>本機歸檔位置，<code>USE_DB_RECOVERY_FILE_DEST</code> 表示放在 FRA。</dd>
+      <dt>VALID_FOR=(ALL_LOGFILES,ALL_ROLES)</dt><dd>不論自己是 Primary 或 Standby、不論 online 或 standby log，都要在本機歸檔。</dd>
+      <dt>log_archive_dest_2 SERVICE</dt><dd>遠端目的地。<code>SERVICE={{STB}}</code> 是 tnsnames.ora 中的別名（D5 設定）。</dd>
+      <dt>ASYNC</dt><dd>非同步傳送，對應 Maximum Performance 保護模式（預設）。</dd>
+      <dt>VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE)</dt><dd>只有自己是 Primary 時才送 redo，變成 Standby 後自動停止這個目的地。</dd>
+      <dt>DB_UNIQUE_NAME={{STB}}</dt><dd>指明對方身分，必須存在於 DG_CONFIG 中。</dd>
+      <dt>fal_server</dt><dd>Fetch Archive Log：自己是 Standby 時，發現缺 log（gap）要向誰要。</dd>
+      <dt>standby_file_management=AUTO</dt><dd>Primary 新增或刪除資料檔時，Standby 自動跟著建立／刪除，否則 Standby 的 MRP 會停下來。</dd>
+      <dt>remote_login_passwordfile=EXCLUSIVE</dt><dd>允許 SYS 透過密碼檔遠端登入，redo 傳送就是用這個方式驗證。</dd>
+    </dl>
+    <div class="box warn"><b>注意</b><p>此時 Standby 還不存在，<code>log_archive_dest_2</code> 會出現錯誤（ORA-12514 / ORA-12541），alert log 有錯誤訊息屬正常現象，D9 完成後就會恢復。</p></div>
+  </div>
+</section>
+
+<section class="step" id="d5" data-mod="D">
+  <header><span class="num">D5</span><h4>Listener 靜態註冊與 tnsnames.ora</h4><span class="tag both">兩台</span><span class="tag tool">OS（oracle）</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>資料庫平常是「動態註冊」到 listener，但 Standby 在 NOMOUNT／MOUNT 時或資料庫關機時無法動態註冊，RMAN 和切換流程就連不進去（ORA-12514）。<b>靜態註冊</b>把 SID 寫死在 listener.ora，資料庫沒開也連得到。tnsnames.ora 則讓兩台都能用 <code>{{CDB}}</code>、<code>{{STB}}</code> 這兩個別名互連。</p></div>
+    <div class="codewrap"><span class="label">Primary：$ORACLE_HOME/network/admin/listener.ora</span><pre><code>LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = {{PRI_HOST}})(PORT = 1521))
+    )
+  )
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{CDB}})
+      (ORACLE_HOME = {{OHOME}})
+      (SID_NAME = {{CDB}})
+    )
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{CDB}}_DGMGRL)
+      (ORACLE_HOME = {{OHOME}})
+      (SID_NAME = {{CDB}})
+    )
+  )</code></pre></div>
+    <div class="codewrap"><span class="label">Standby：$ORACLE_HOME/network/admin/listener.ora</span><pre><code>LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = {{STB_HOST}})(PORT = 1521))
+    )
+  )
+
+SID_LIST_LISTENER =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{STB}})
+      (ORACLE_HOME = {{OHOME}})
+      (SID_NAME = {{STB}})
+    )
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{STB}}_DGMGRL)
+      (ORACLE_HOME = {{OHOME}})
+      (SID_NAME = {{STB}})
+    )
+  )</code></pre></div>
+    <div class="codewrap"><span class="label">兩台相同：$ORACLE_HOME/network/admin/tnsnames.ora</span><pre><code>{{CDB}} =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{PRI_HOST}})(PORT = 1521))
+    (CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = {{CDB}})(UR = A))
+  )
+
+{{STB}} =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{STB_HOST}})(PORT = 1521))
+    (CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = {{STB}})(UR = A))
+  )
+
+{{PDB}} =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = {{PRI_HOST}})(PORT = 1521))
+    (CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = {{PDB}}))
+  )</code></pre></div>
+    <div class="codewrap"><span class="label">OS（兩台）</span><pre><code>lsnrctl stop
+lsnrctl start
+lsnrctl status          # 應看到 {{CDB}} 或 {{STB}} 的 status UNKNOWN（靜態）
+
+tnsping {{CDB}}
+tnsping {{STB}}</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>SID_LIST_LISTENER</dt><dd>靜態註冊清單。<code>GLOBAL_DBNAME</code> 是對外的 service 名稱，<code>SID_NAME</code> 是要啟動／連線的執行個體。</dd>
+      <dt>{{CDB}}_DGMGRL</dt><dd>給 Broker 用的固定 service 名稱，Broker 切換時要靠它遠端重啟資料庫。不用 Broker 也可以保留。</dd>
+      <dt>(UR = A)</dt><dd>Use Restricted = Any，允許連到 NOMOUNT／受限模式的執行個體，DUPLICATE 時需要。</dd>
+      <dt>status UNKNOWN</dt><dd>代表靜態註冊（listener 不知道資料庫實際狀態），這是正常的；動態註冊則會顯示 READY。</dd>
+      <dt>tnsping</dt><dd>只測試 listener 是否可達，不驗證帳號密碼。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="d6" data-mod="D">
+  <header><span class="num">D6</span><h4>複製密碼檔到 Standby</h4><span class="tag pri">Primary</span><span class="tag tool">OS（oracle）</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>redo 傳送時，Primary 會以 SYS 身分登入 Standby，驗證方式就是比對密碼檔。兩邊密碼檔不同會出現 ORA-16191 / ORA-01017，redo 傳不過去。所以必須「複製」而不是在 Standby 用同樣密碼重建一份。</p></div>
+    <div class="codewrap"><span class="label">OS（Primary）</span><pre><code>ls -l $ORACLE_HOME/dbs/orapw{{CDB}}
+
+scp $ORACLE_HOME/dbs/orapw{{CDB}} \
+    oracle@{{STB_HOST}}:{{OHOME}}/dbs/orapw{{STB}}</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>orapw&lt;SID&gt;</dt><dd>密碼檔命名規則，Oracle 依 <code>ORACLE_SID</code> 找檔案，所以在 Standby 要改名為 <code>orapw{{STB}}</code>。</dd>
+      <dt>scp</dt><dd>透過 SSH 複製檔案到遠端主機。</dd>
+    </dl>
+    <div class="box tip"><b>補充</b><p>12.2 之後，在 Primary 修改 SYS 密碼會透過 redo 自動同步到 Standby；但初次建立仍需要手動複製。</p></div>
+  </div>
+</section>
+
+<section class="step" id="d7" data-mod="D">
+  <header><span class="num">D7</span><h4>Standby：建立目錄並啟動到 NOMOUNT</h4><span class="tag stb">Standby</span><span class="tag tool">OS</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>RMAN DUPLICATE 需要一個已經啟動的「空」執行個體（auxiliary）來接收檔案。這個執行個體只要最少參數（只要 db_name）就能 NOMOUNT，真正的 spfile 會由 DUPLICATE 從 Primary 複製過來再修改。資料檔目錄要事先建立，因為這裡沿用和 Primary 相同的路徑。</p></div>
+    <div class="codewrap"><span class="label">OS（Standby，oracle）</span><pre><code># 與 Primary 相同的資料檔、控制檔、FRA 路徑
+mkdir -p {{ORABASE}}/oradata/{{CDB}}/pdbseed
+mkdir -p {{ORABASE}}/oradata/{{CDB}}/{{PDB}}
+mkdir -p {{ORABASE}}/fast_recovery_area/{{CDB}}
+mkdir -p {{ORABASE}}/admin/{{STB}}/adump
+
+# 登記到 oratab，方便 . oraenv 切換
+echo "{{STB}}:{{OHOME}}:N" &gt;&gt; /etc/oratab
+
+# 最小 pfile
+echo "*.db_name='{{CDB}}'" &gt; /tmp/init{{STB}}.ora
+
+export ORACLE_SID={{STB}}
+sqlplus / as sysdba</code></pre></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Standby）</span><pre><code>STARTUP NOMOUNT PFILE='/tmp/init{{STB}}.ora';
+EXIT</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>mkdir -p 相同路徑</dt><dd>DUPLICATE 加上 <code>NOFILENAMECHECK</code> 時，檔案會放到和 Primary 一樣的位置，目錄必須已存在。路徑不同時要改用 <code>db_file_name_convert</code>／<code>log_file_name_convert</code>。</dd>
+      <dt>/etc/oratab</dt><dd>記錄 SID 與 ORACLE_HOME 的對應，<code>. oraenv</code> 與開機自動啟動會讀它。</dd>
+      <dt>*.db_name</dt><dd>必須與 Primary 的 DB_NAME 相同，這是唯一必要的參數。</dd>
+      <dt>STARTUP NOMOUNT PFILE=</dt><dd>用指定的 pfile 啟動執行個體，不讀控制檔，等待 RMAN 連入。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>顯示 <code>ORACLE instance started.</code>；在 Primary 執行 <code>sqlplus sys@{{STB}} as sysdba</code> 能成功連入（狀態為 STARTED）。</p></div>
+  </div>
+</section>
+
+<section class="step" id="d8" data-mod="D">
+  <header><span class="num">D8</span><h4>RMAN DUPLICATE FROM ACTIVE DATABASE 建立 Standby</h4><span class="tag pri">Primary</span><span class="tag tool">RMAN</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>Standby 必須是 Primary 的實體複製品（同 DBID、同區塊內容）。<code>FROM ACTIVE DATABASE</code> 直接透過網路從線上 Primary 複製，不需要先做備份再搬檔案，Primary 不用停機。<code>FOR STANDBY</code> 會建立 standby 類型的控制檔，讓它成為 Standby 而不是新的獨立資料庫。</p></div>
+    <div class="codewrap"><span class="label">RMAN（在 Primary 執行）</span><pre><code>rman TARGET sys@{{CDB}} AUXILIARY sys@{{STB}}
+
+DUPLICATE TARGET DATABASE
+  FOR STANDBY
+  FROM ACTIVE DATABASE
+  DORECOVER
+  SPFILE
+    SET db_unique_name   = '{{STB}}'
+    SET log_archive_dest_1 = 'LOCATION=USE_DB_RECOVERY_FILE_DEST VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME={{STB}}'
+    SET log_archive_dest_2 = 'SERVICE={{CDB}} ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME={{CDB}}'
+    SET fal_server       = '{{CDB}}'
+    SET audit_file_dest  = '{{ORABASE}}/admin/{{STB}}/adump'
+  NOFILENAMECHECK;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>TARGET sys@{{CDB}}</dt><dd>來源資料庫（Primary），透過 TNS 連線並輸入 SYS 密碼。</dd>
+      <dt>AUXILIARY sys@{{STB}}</dt><dd>目的端（D7 啟動的 NOMOUNT 執行個體），靠 D5 的靜態註冊與 UR=A 才連得到。</dd>
+      <dt>FOR STANDBY</dt><dd>建立 physical standby：standby 控制檔、相同 DBID。</dd>
+      <dt>FROM ACTIVE DATABASE</dt><dd>直接從線上資料庫透過網路傳資料檔，不使用既有備份。</dd>
+      <dt>DORECOVER</dt><dd>複製完後順便套用 archivelog，讓 Standby 追到接近最新。</dd>
+      <dt>SPFILE SET ...</dt><dd>把 Primary 的 spfile 複製到 Standby，並覆寫指定參數。角色相關參數要「反過來」：dest_2 與 fal_server 指向 Primary。</dd>
+      <dt>NOFILENAMECHECK</dt><dd>允許兩邊檔案路徑相同。因為在不同主機上，這樣設定是安全的。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>最後顯示 <code>Finished Duplicate Db</code>。Standby 被重新啟動到 MOUNT，並使用新的 <code>spfile{{STB}}.ora</code>。</p></div>
+    <div class="box warn"><b>常見卡點</b><ul>
+      <li>ORA-12514 / RMAN-04006：Standby listener 靜態註冊或 UR=A 沒設好（回到 D5）。</li>
+      <li>ORA-01017：密碼檔不一致（回到 D6）。</li>
+      <li>ORA-19504 / 找不到目錄：Standby 少建了資料檔目錄（回到 D7）。</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="step" id="d9" data-mod="D">
+  <header><span class="num">D9</span><h4>Standby：啟動 Redo Apply（MRP）</h4><span class="tag stb">Standby</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>DUPLICATE 只負責「複製」，接收到的 redo 還需要有程序持續套用，Standby 的資料才會跟上 Primary。MRP 就是這個背景程序。有 SRL 時，19c 預設即為 Real-Time Apply。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Standby）</span><pre><code>export ORACLE_SID={{STB}}
+sqlplus / as sysdba
+
+SELECT name, db_unique_name, database_role, open_mode FROM v$database;
+SELECT group#, thread#, bytes/1024/1024 AS mb, status FROM v$standby_log;
+
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+
+-- 確認 MRP 在執行
+SELECT process, status, thread#, sequence#, block# FROM v$managed_standby
+WHERE  process LIKE 'MRP%' OR process LIKE 'RFS%';</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>database_role</dt><dd>應為 <code>PHYSICAL STANDBY</code>；open_mode 為 <code>MOUNTED</code>。</dd>
+      <dt>RECOVER MANAGED STANDBY DATABASE</dt><dd>啟動受管理的復原程序 MRP0，持續套用收到的 redo。</dd>
+      <dt>DISCONNECT FROM SESSION</dt><dd>讓 MRP 在背景執行，SQL*Plus 立即返回、可以離開。</dd>
+      <dt>v$managed_standby</dt><dd>顯示 Data Guard 相關程序。MRP0 狀態 <code>APPLYING_LOG</code> 或 <code>WAIT_FOR_LOG</code> 都是正常；RFS 代表正在接收 redo。（19c 也可用 <code>v$dataguard_process</code>）</dd>
+    </dl>
+    <div class="box warn"><b>授權提醒</b><p>Standby 在 <code>OPEN READ ONLY</code> 狀態下同時執行 MRP，就是 Active Data Guard，需要額外授權。只要保持 MOUNTED 套用就不需要。</p></div>
+  </div>
+</section>
+
+<h3 class="part" id="dg-repl">Data Replication：確認資料有同步</h3>
+
+<section class="step" id="v1" data-mod="D">
+  <header><span class="num">V1</span><h4>確認兩邊角色與保護模式</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>每次操作前後都先確認「我現在連在哪一台、它是什麼角色」，這是避免在錯誤主機下指令的最基本習慣，切換練習時尤其重要。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（兩台都執行）</span><pre><code>SELECT name, db_unique_name, database_role, open_mode,
+       protection_mode, switchover_status
+FROM   v$database;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>database_role</dt><dd>PRIMARY 或 PHYSICAL STANDBY。</dd>
+      <dt>protection_mode</dt><dd>預設 <code>MAXIMUM PERFORMANCE</code>（搭配 ASYNC）。</dd>
+      <dt>switchover_status</dt><dd>Primary 上為 <code>TO STANDBY</code> 或 <code>SESSIONS ACTIVE</code> 表示可以切換；<code>FAILED DESTINATION</code> 表示傳送有問題。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b>
+      <div class="tbl-scroll"><table class="t">
+        <tr><th></th><th>db_unique_name</th><th>database_role</th><th>open_mode</th></tr>
+        <tr><td>Primary</td><td>{{CDB}}</td><td>PRIMARY</td><td>READ WRITE</td></tr>
+        <tr><td>Standby</td><td>{{STB}}</td><td>PHYSICAL STANDBY</td><td>MOUNTED</td></tr>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="v2" data-mod="D">
+  <header><span class="num">V2</span><h4>確認 redo 有送出（Primary 端）</h4><span class="tag pri">Primary</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>先確認 Primary 這端送得出去。dest_2 有錯誤時，Primary 不會停止服務（ASYNC），只會默默累積落差，所以要主動檢查。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Primary）</span><pre><code>ALTER SYSTEM SWITCH LOGFILE;
+
+SELECT dest_id, status, error, gap_status, database_mode, recovery_mode
+FROM   v$archive_dest_status
+WHERE  dest_id = 2;
+
+SELECT MAX(sequence#) AS last_seq FROM v$archived_log
+WHERE  dest_id = 1;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>SWITCH LOGFILE</dt><dd>強制切換 online redo，產生一個新的 archivelog，方便觀察傳送。</dd>
+      <dt>v$archive_dest_status</dt><dd><code>status=VALID</code>、<code>error</code> 為空、<code>gap_status=NO GAP</code> 代表正常；<code>recovery_mode</code> 顯示 Standby 的套用模式（如 MANAGED REAL TIME APPLY）。</dd>
+      <dt>v$archived_log dest_id=1</dt><dd>Primary 本機最新的歸檔序號，拿來跟 Standby 比對。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="v3" data-mod="D">
+  <header><span class="num">V3</span><h4>確認 redo 有收到並套用（Standby 端）</h4><span class="tag stb">Standby</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>「收到」和「套用」是兩件事：redo 可能已經傳到但 MRP 停了。要同時看傳送延遲（transport lag）與套用延遲（apply lag）。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（Standby）</span><pre><code>-- 傳送與套用的延遲
+SELECT name, value, time_computed FROM v$dataguard_stats
+WHERE  name IN ('transport lag', 'apply lag');
+
+-- 最近的 archivelog 是否已套用
+SELECT sequence#, first_time, applied FROM v$archived_log
+ORDER  BY sequence# DESC FETCH FIRST 5 ROWS ONLY;
+
+-- 是否有缺號（gap）
+SELECT * FROM v$archive_gap;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>transport lag</dt><dd>Standby 收到的 redo 比 Primary 落後多久，正常為 <code>+00 00:00:00</code> 或幾秒。</dd>
+      <dt>apply lag</dt><dd>已收到但尚未套用的時間差，Real-Time Apply 時應接近 0。</dd>
+      <dt>applied</dt><dd><code>YES</code> 已套用；<code>IN-MEMORY</code> 正在套用中，也是正常的。</dd>
+      <dt>v$archive_gap</dt><dd>有資料代表缺少某些序號，正常情況 FAL 會自動補上。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>Standby 最新 sequence# 與 V2 的 last_seq 相同，且 applied 為 YES / IN-MEMORY；兩個 lag 都在數秒內。</p></div>
+  </div>
+</section>
+
+<section class="step" id="v4" data-mod="D">
+  <header><span class="num">V4</span><h4>實際寫資料，到 Standby 查得到</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>系統視圖顯示正常，仍不等於使用者資料真的過去了。最直接的證據是：在 Primary 的 PDB 寫一筆資料，到 Standby 查得到。這裡先停 MRP 再唯讀開啟，查完再回到 MOUNT，就不會用到 Active Data Guard 授權功能。</p></div>
+    <div class="codewrap"><span class="label">① Primary：寫入測試資料</span><pre><code>ALTER SESSION SET CONTAINER = {{PDB}};
+CREATE TABLE lab.dg_test (id NUMBER, note VARCHAR2(50), created DATE DEFAULT SYSDATE);
+INSERT INTO lab.dg_test (id, note) VALUES (1, 'written on primary');
+COMMIT;
+
+ALTER SESSION SET CONTAINER = CDB$ROOT;
+ALTER SYSTEM ARCHIVE LOG CURRENT;</code></pre></div>
+    <div class="codewrap"><span class="label">② Standby：唯讀開啟查詢後恢復</span><pre><code>ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+ALTER DATABASE OPEN READ ONLY;
+ALTER PLUGGABLE DATABASE {{PDB}} OPEN READ ONLY;
+
+ALTER SESSION SET CONTAINER = {{PDB}};
+SELECT * FROM lab.dg_test;
+
+-- 恢復成 MOUNT + 套用
+ALTER SESSION SET CONTAINER = CDB$ROOT;
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>ARCHIVE LOG CURRENT</dt><dd>歸檔目前的 online redo，並等待歸檔完成，確保剛才的交易已送出。</dd>
+      <dt>RECOVER ... CANCEL</dt><dd>停止 MRP。Standby 必須停止套用後才能以非 ADG 方式開啟。</dd>
+      <dt>OPEN READ ONLY</dt><dd>以唯讀方式開啟 Standby，只能查詢，不能寫入。</dd>
+      <dt>SHUTDOWN → STARTUP MOUNT</dt><dd>回到 MOUNT 狀態再啟動 MRP。若直接在 READ ONLY 下啟動 MRP 就會變成 Active Data Guard。</dd>
+    </dl>
+    <div class="box ok"><b>預期結果</b><p>Standby 查到 <code>1 | written on primary</code>。</p></div>
+  </div>
+</section>
+
+<h3 class="part" id="dg-switch">切換測試：能不能正常切換</h3>
+
+<section class="step" id="w1" data-mod="D">
+  <header><span class="num">W1</span><h4>Switchover 前檢查</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>Switchover 要求 Standby 已經套用完所有 redo，否則會失敗或等待很久。<code>VERIFY</code> 會預先檢查參數、SRL、落差等條件，但不會真的切換，等於彩排。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus</span><pre><code>-- Primary
+SELECT switchover_status FROM v$database;     -- TO STANDBY 或 SESSIONS ACTIVE
+ALTER DATABASE SWITCHOVER TO {{STB}} VERIFY;
+
+-- Standby
+SELECT name, value FROM v$dataguard_stats WHERE name = 'apply lag';</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>SWITCHOVER TO ... VERIFY</dt><dd>12c 起的語法。回應 <code>Database altered.</code> 代表通過；若有問題會回傳 ORA-16475 等錯誤，詳細原因寫在 alert log。</dd>
+      <dt>SESSIONS ACTIVE</dt><dd>仍有使用者連線，切換時 Oracle 會將其中斷，練習環境可以直接切換。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="w2" data-mod="D">
+  <header><span class="num">W2</span><h4>Switchover：Primary ↔ Standby 互換</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>這是 Data Guard 的核心能力：計畫性維護（主機更新、搬機房、演練）時把服務移到另一台，而且<b>零資料遺失</b>。指令從舊 Primary 發出，Oracle 會確保最後的 redo 都送到並套用完才轉換角色。</p></div>
+    <div class="codewrap"><span class="label">① 原 Primary（{{PRI_HOST}}）</span><pre><code>ALTER DATABASE SWITCHOVER TO {{STB}};</code></pre></div>
+    <div class="codewrap"><span class="label">② 新 Primary（{{STB_HOST}}）</span><pre><code>SELECT database_role, open_mode FROM v$database;   -- PRIMARY / MOUNTED
+ALTER DATABASE OPEN;
+ALTER PLUGGABLE DATABASE ALL OPEN;</code></pre></div>
+    <div class="codewrap"><span class="label">③ 新 Standby（{{PRI_HOST}}）</span><pre><code>-- 原 Primary 在 switchover 後會被關閉；若仍在執行，先 SHUTDOWN ABORT
+STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>SWITCHOVER TO {{STB}}</dt><dd>一行完成：原 Primary 送出最後的 redo（End-Of-Redo）→ 轉成 standby → Standby 套用完畢轉成 primary。</dd>
+      <dt>ALTER DATABASE OPEN（新 Primary）</dt><dd>新 Primary 轉換後停在 MOUNTED，需要開啟才能服務。</dd>
+      <dt>STARTUP MOUNT + RECOVER（新 Standby）</dt><dd>原 Primary 現在是 Standby，掛載後啟動 MRP 開始接收、套用新 Primary 的 redo。D4 預先設好的 <code>fal_server</code> 與 <code>VALID_FOR</code> 這時派上用場。</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="step" id="w3" data-mod="D">
+  <header><span class="num">W3</span><h4>驗證新角色與反向同步</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>「切過去」只成功一半，還要確認方向反過來的同步也正常：新 Primary 的資料能送回原 Primary 主機。這也證明兩邊的參數都正確設定為對稱。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus</span><pre><code>-- 兩台：確認角色已互換
+SELECT db_unique_name, database_role, open_mode FROM v$database;
+
+-- 新 Primary（{{STB_HOST}}）寫資料
+ALTER SESSION SET CONTAINER = {{PDB}};
+INSERT INTO lab.dg_test (id, note) VALUES (2, 'written on {{STB}}');
+COMMIT;
+ALTER SESSION SET CONTAINER = CDB$ROOT;
+ALTER SYSTEM ARCHIVE LOG CURRENT;
+
+SELECT dest_id, status, error FROM v$archive_dest_status WHERE dest_id = 2;
+
+-- 新 Standby（{{PRI_HOST}}）
+SELECT sequence#, applied FROM v$archived_log
+ORDER  BY sequence# DESC FETCH FIRST 3 ROWS ONLY;</code></pre></div>
+    <div class="box ok"><b>預期結果</b><p>{{STB}} 為 PRIMARY / READ WRITE，{{CDB}} 為 PHYSICAL STANDBY / MOUNTED；新 Primary 的 dest_2 為 VALID；新 Standby 的最新序號已套用。可用 V4 的方式在 {{PRI_HOST}} 唯讀查到 id=2。</p></div>
+  </div>
+</section>
+
+<section class="step" id="w4" data-mod="D">
+  <header><span class="num">W4</span><h4>切回原角色（Switch back）</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>能切過去、也能切回來，才算驗證完整。指令完全一樣，只是方向相反，執行主機也互換。</p></div>
+    <div class="codewrap"><span class="label">① 目前 Primary（{{STB_HOST}}）</span><pre><code>ALTER DATABASE SWITCHOVER TO {{CDB}} VERIFY;
+ALTER DATABASE SWITCHOVER TO {{CDB}};</code></pre></div>
+    <div class="codewrap"><span class="label">② 回到 Primary（{{PRI_HOST}}）</span><pre><code>ALTER DATABASE OPEN;
+ALTER PLUGGABLE DATABASE ALL OPEN;</code></pre></div>
+    <div class="codewrap"><span class="label">③ 回到 Standby（{{STB_HOST}}）</span><pre><code>STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;</code></pre></div>
+    <div class="box ok"><b>預期結果</b><p>回到 V1 的角色表，<code>lab.dg_test</code> 在 Primary 上有 id=1、2 兩筆。</p></div>
+  </div>
+</section>
+
+<section class="step" id="f1" data-mod="D">
+  <header><span class="num">F1</span><h4>（進階）Failover 與 Reinstate 舊 Primary</h4><span class="tag both">兩台</span><span class="tag tool">SQL*Plus</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>真正的災難是 Primary 突然掛掉，沒有機會做 Switchover。Failover 會把 Standby 強制升為 Primary，ASYNC 模式下可能遺失最後幾秒的交易。之後舊 Primary 的時間線已經「分岔」，要用 Flashback 倒回分岔點再轉成 Standby（reinstate），這就是 D2 要開 FLASHBACK 的原因。</p></div>
+    <div class="codewrap"><span class="label">① 模擬 Primary 當機（{{PRI_HOST}}）</span><pre><code>SHUTDOWN ABORT;</code></pre></div>
+    <div class="codewrap"><span class="label">② Standby 接手（{{STB_HOST}}）</span><pre><code>ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+ALTER DATABASE FAILOVER TO {{STB}};
+ALTER DATABASE OPEN;
+ALTER PLUGGABLE DATABASE ALL OPEN;
+
+-- 記下分岔點 SCN
+SELECT TO_CHAR(standby_became_primary_scn) AS scn FROM v$database;</code></pre></div>
+    <div class="codewrap"><span class="label">③ Reinstate 舊 Primary（{{PRI_HOST}}）</span><pre><code>STARTUP MOUNT;
+FLASHBACK DATABASE TO SCN 1234567;      -- ← 換成上一步的 SCN
+ALTER DATABASE CONVERT TO PHYSICAL STANDBY;
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>FAILOVER TO {{STB}}</dt><dd>12c 起的語法：套用所有已收到的 redo 後，把 Standby 轉為 Primary。</dd>
+      <dt>standby_became_primary_scn</dt><dd>Standby 成為 Primary 時的 SCN，也就是兩條時間線的分岔點。</dd>
+      <dt>FLASHBACK DATABASE TO SCN</dt><dd>利用 flashback log 把舊 Primary 倒回分岔點，丟掉它在分岔後獨有的變更。</dd>
+      <dt>CONVERT TO PHYSICAL STANDBY</dt><dd>把控制檔轉為 standby 控制檔，之後重新掛載並啟動 MRP 開始接收新 Primary 的 redo。</dd>
+    </dl>
+    <div class="box tip"><b>收尾</b><p>Reinstate 完成並確認同步後，再做一次 W2 的 Switchover（從 {{STB_HOST}} 切到 {{CDB}}），就能回到原本的角色配置。</p></div>
+  </div>
+</section>
+
+<section class="step" id="k1" data-mod="D">
+  <header><span class="num">K1</span><h4>（選用）改用 Data Guard Broker 管理</h4><span class="tag both">兩台</span><span class="tag tool">DGMGRL</span><label class="chk"><input type="checkbox">完成</label></header>
+  <div class="body">
+    <div class="box why"><b>為什麼</b><p>上面的 SQL 方式能看清楚每個動作，但實務上通常用 Broker：一行 <code>SWITCHOVER</code> 就會自動完成兩邊的開啟、掛載、啟動 MRP，也能做狀態檢查與自動 Failover（Fast-Start Failover）。Broker 會接管 <code>log_archive_dest_n</code> 等參數，所以要先清掉手動設定，<b>兩種方式不要混用</b>。</p></div>
+    <div class="codewrap"><span class="label">SQL*Plus（兩台）</span><pre><code>ALTER SYSTEM SET log_archive_dest_2 = '' SCOPE=BOTH;
+ALTER SYSTEM SET dg_broker_start = TRUE SCOPE=BOTH;</code></pre></div>
+    <div class="codewrap"><span class="label">DGMGRL（Primary）</span><pre><code>dgmgrl sys@{{CDB}}
+
+CREATE CONFIGURATION dg_lab AS
+  PRIMARY DATABASE IS {{CDB}} CONNECT IDENTIFIER IS {{CDB}};
+ADD DATABASE {{STB}} AS CONNECT IDENTIFIER IS {{STB}} MAINTAINED AS PHYSICAL;
+ENABLE CONFIGURATION;
+
+SHOW CONFIGURATION;
+VALIDATE DATABASE {{STB}};
+SWITCHOVER TO {{STB}};
+SHOW CONFIGURATION;
+SWITCHOVER TO {{CDB}};</code></pre></div>
+    <div class="ex-title">指令意思</div>
+    <dl class="ex">
+      <dt>dg_broker_start</dt><dd>啟動 Broker 背景程序 DMON。</dd>
+      <dt>log_archive_dest_2 = ''</dt><dd>清除手動設定的傳送目的地，否則 ADD DATABASE 會出現 ORA-16698。</dd>
+      <dt>CREATE CONFIGURATION / ADD DATABASE</dt><dd>建立 Broker 組態並加入 Standby，Broker 會自動設定傳送參數。</dd>
+      <dt>SHOW CONFIGURATION</dt><dd>最後一行 <code>Configuration Status: SUCCESS</code> 代表一切正常。</dd>
+      <dt>VALIDATE DATABASE</dt><dd>檢查 Standby 是否已經準備好接手（Ready for Switchover: Yes）。</dd>
+      <dt>SWITCHOVER TO</dt><dd>自動完成 W2 的所有步驟，包含重啟兩邊資料庫（需要 D5 的 <code>_DGMGRL</code> 靜態註冊）。</dd>
+    </dl>
+  </div>
+</section>
+
+<h3 class="part" id="trouble">常見錯誤排查</h3>
+<div class="card">
+  <div class="tbl-scroll"><table class="t">
+    <tr><th>錯誤</th><th>常見原因</th><th>處理方式</th></tr>
+    <tr><td>ORA-00257 archiver error</td><td>FRA 滿了，archivelog 寫不出去</td><td>加大 <code>db_recovery_file_dest_size</code>，或 RMAN 備份後 <code>DELETE ARCHIVELOG ALL BACKED UP 1 TIMES TO DISK;</code></td></tr>
+    <tr><td>ORA-01157 / ORA-01110</td><td>資料檔遺失或無法存取</td><td>見 S1：RESTORE / RECOVER DATAFILE</td></tr>
+    <tr><td>RMAN-06054</td><td>Recover 需要的 log 不存在</td><td>改做不完整復原：SET UNTIL SEQUENCE，再 OPEN RESETLOGS</td></tr>
+    <tr><td>ORA-12514 / ORA-12541</td><td>listener 沒有該 service、listener 沒啟動、防火牆擋住</td><td><code>lsnrctl status</code> 檢查靜態註冊；<code>tnsping</code>；確認 1521 port 已開放</td></tr>
+    <tr><td>ORA-16191 / ORA-01017</td><td>Primary 與 Standby 密碼檔不同</td><td>重新執行 D6 複製密碼檔</td></tr>
+    <tr><td>ORA-16698</td><td>使用 Broker 時，手動設定的 log_archive_dest_n 仍存在</td><td>清空 <code>log_archive_dest_2</code> 後再加入 Broker</td></tr>
+    <tr><td>Standby 一直有 gap</td><td>archivelog 被刪掉、網路中斷</td><td>查 <code>v$archive_gap</code>，從 Primary 複製缺少的 log 後執行 <code>ALTER DATABASE REGISTER LOGFILE '路徑';</code></td></tr>
+    <tr><td>MRP 停止</td><td>Primary 新增資料檔但 standby_file_management 不是 AUTO、Standby 空間不足</td><td>看 Standby 的 alert log：<code>{{ORABASE}}/diag/rdbms/{{STB}}/{{STB}}/trace/alert_{{STB}}.log</code></td></tr>
+  </table></div>
+  <div class="box tip"><b>看 alert log 的習慣</b><p>任何步驟失敗，第一件事就是看 alert log：<code>tail -100f {{ORABASE}}/diag/rdbms/&lt;db_unique_name 小寫&gt;/&lt;SID&gt;/trace/alert_&lt;SID&gt;.log</code>。Data Guard 的錯誤幾乎都會在這裡留下更詳細的原因。注意 diag 目錄中的 db_unique_name 是小寫。</p></div>
+</div>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var DEFAULTS = {
+    PRI_HOST:'oel-pri', PRI_IP:'192.168.56.101',
+    STB_HOST:'oel-stb', STB_IP:'192.168.56.102',
+    CDB:'ORCL', STB:'ORCL_STB', PDB:'ORCLPDB1',
+    ORABASE:'/u01/app/oracle',
+    OHOME:'/u01/app/oracle/product/19.0.0/dbhome_1',
+    BKP:'/u01/backup'
+  };
+  var LABELS = {
+    PRI_HOST:'Primary 主機名稱', PRI_IP:'Primary IP',
+    STB_HOST:'Standby 主機名稱', STB_IP:'Standby IP',
+    CDB:'DB_NAME / Primary SID', STB:'Standby DB_UNIQUE_NAME / SID', PDB:'PDB 名稱',
+    ORABASE:'ORACLE_BASE', OHOME:'ORACLE_HOME', BKP:'RMAN 備份目錄'
+  };
+  function sget(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function sset(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+  var vars = Object.assign({}, DEFAULTS);
+  try{ var saved = JSON.parse(sget('ora-lab-vars')||'null'); if(saved) Object.assign(vars, saved); }catch(e){}
+
+  // 1) 註解上色（在收集範本前做）
+  document.querySelectorAll('pre code').forEach(function(code){
+    var html = code.textContent.split('\n').map(function(line){
+      var esc = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      var t = line.trim();
+      if(t.indexOf('--')===0 || t.indexOf('# ')===0 || t==='#') return '<span class="c">'+esc+'</span>';
+      return esc;
+    }).join('\n');
+    code.innerHTML = html;
+  });
+
+  // 2) 收集含 {{VAR}} 的文字節點
+  var nodes = [];
+  var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  var n;
+  while((n = walker.nextNode())){
+    if(n.parentNode && n.parentNode.closest('script,style')) continue;
+    if(n.nodeValue.indexOf('{{')>-1) nodes.push({node:n, tpl:n.nodeValue});
+  }
+  function render(){
+    nodes.forEach(function(o){
+      o.node.nodeValue = o.tpl.replace(/\{\{(\w+)\}\}/g, function(m,k){ return vars[k]!=null && vars[k]!=='' ? vars[k] : m; });
+    });
+  }
+
+  // 3) 環境變數表單
+  var form = document.getElementById('envForm');
+  Object.keys(DEFAULTS).forEach(function(k){
+    var lab = document.createElement('label');
+    lab.textContent = LABELS[k];
+    var inp = document.createElement('input');
+    inp.value = vars[k]; inp.spellcheck = false; inp.dataset.k = k;
+    inp.addEventListener('input', function(){
+      vars[k] = inp.value.trim();
+      sset('ora-lab-vars', JSON.stringify(vars));
+      render();
+    });
+    lab.appendChild(inp); form.appendChild(lab);
+  });
+  document.getElementById('envReset').addEventListener('click', function(){
+    vars = Object.assign({}, DEFAULTS);
+    sset('ora-lab-vars', JSON.stringify(vars));
+    form.querySelectorAll('input').forEach(function(i){ i.value = vars[i.dataset.k]; });
+    render();
+  });
+  render();
+
+  // 4) 複製按鈕
+  document.querySelectorAll('.codewrap').forEach(function(w){
+    var b = document.createElement('button');
+    b.className = 'copy'; b.type = 'button'; b.textContent = '複製';
+    b.addEventListener('click', function(){
+      var text = w.querySelector('pre').innerText;
+      var done = function(){ b.textContent = '已複製'; setTimeout(function(){ b.textContent='複製'; }, 1200); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ fallback(text); done(); });
+      } else { fallback(text); done(); }
+    });
+    w.appendChild(b);
+  });
+  function fallback(text){
+    var ta = document.createElement('textarea'); ta.value = text;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta);
+  }
+
+  // 5) 完成進度
+  var prog = {};
+  try{ prog = JSON.parse(sget('ora-lab-progress')||'{}') || {}; }catch(e){ prog = {}; }
+  var steps = Array.prototype.slice.call(document.querySelectorAll('section.step'));
+  function updateProgress(){
+    var all=0, done=0, c={R:[0,0], D:[0,0]};
+    steps.forEach(function(s){
+      var d = !!prog[s.id]; all++; if(d) done++;
+      c[s.dataset.mod][1]++; if(d) c[s.dataset.mod][0]++;
+      s.classList.toggle('is-done', d);
+      var a = document.querySelector('nav.side a[href="#'+s.id+'"]');
+      if(a) a.classList.toggle('done', d);
+    });
+    document.getElementById('pAll').textContent = done+'/'+all;
+    document.getElementById('pBar').style.width = (all? done/all*100 : 0)+'%';
+    document.getElementById('pR').textContent = c.R[0]+'/'+c.R[1];
+    document.getElementById('pD').textContent = c.D[0]+'/'+c.D[1];
+  }
+  steps.forEach(function(s){
+    var cb = s.querySelector('.chk input');
+    cb.checked = !!prog[s.id];
+    cb.addEventListener('change', function(){
+      if(cb.checked) prog[s.id] = 1; else delete prog[s.id];
+      sset('ora-lab-progress', JSON.stringify(prog));
+      updateProgress();
+    });
+  });
+  document.getElementById('progReset').addEventListener('click', function(){
+    prog = {}; sset('ora-lab-progress', '{}');
+    steps.forEach(function(s){ s.querySelector('.chk input').checked = false; });
+    updateProgress();
+  });
+  updateProgress();
+
+  // 6) 深淺色
+  var root = document.documentElement;
+  var th = sget('ora-lab-theme'); if(th) root.setAttribute('data-theme', th);
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); sset('ora-lab-theme', next);
+  });
+
+  // 手機版點目錄後收合
+  document.querySelectorAll('nav.side .links a').forEach(function(a){
+    a.addEventListener('click', function(){ document.getElementById('side').classList.remove('open'); });
+  });
+})();
+</script>
+</body>
+</html>
